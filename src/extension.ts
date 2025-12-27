@@ -472,4 +472,157 @@ export function activate(context: vscode.ExtensionContext) {
 			}
 		})
 	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kiki.deleteMergedBranches', async () => {
+			const repoPath = detectRepoRoot(vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || '');
+			if (!repoPath) {
+				vscode.window.showErrorMessage('Kiki: No Git repository found.');
+				return;
+			}
+
+			try {
+				// Get branch statuses
+				const { getBranchStatuses } = await import('./git/branchStatus');
+				const { previewDeleteMergedBranches, batchDeleteBranches, formatMergedBranch } = await import('./git/batchOperations');
+
+				const branches = getBranchStatuses(repoPath);
+				const preview = previewDeleteMergedBranches(branches);
+
+				// If no merged branches to delete
+				if (preview.deletable.length === 0) {
+					const reasons: string[] = [];
+					if (preview.active.length > 0) {
+						reasons.push(`${preview.active.length} active`);
+					}
+					if (preview.protected.length > 0) {
+						reasons.push(`${preview.protected.length} protected`);
+					}
+
+					let message = 'No merged branches to delete.';
+					if (reasons.length > 0) {
+						message += ` Found ${preview.totalMergedBranches} merged branch(es) but all are ${reasons.join(' or ')}.`;
+					}
+
+					vscode.window.showInformationMessage(message);
+					return;
+				}
+
+				// Build preview message
+				let previewMessage = `Delete ${preview.deletable.length} merged branch${preview.deletable.length !== 1 ? 'es' : ''}?\n\n`;
+
+				// Show up to 10 branches in the preview
+				const previewList = preview.deletable.slice(0, 10).map(b => {
+					return `  • ${formatMergedBranch(b)}`;
+				}).join('\n');
+
+				previewMessage += previewList;
+
+				if (preview.deletable.length > 10) {
+					previewMessage += `\n  ... and ${preview.deletable.length - 10} more`;
+				}
+
+				// Add info about skipped branches
+				const skipped = preview.protected.length + preview.active.length;
+				if (skipped > 0) {
+					previewMessage += `\n\n(Skipping ${skipped} branch${skipped !== 1 ? 'es' : ''}: `;
+					const parts: string[] = [];
+					if (preview.active.length > 0) {
+						parts.push(`${preview.active.length} active`);
+					}
+					if (preview.protected.length > 0) {
+						parts.push(`${preview.protected.length} protected`);
+					}
+					previewMessage += parts.join(', ') + ')';
+				}
+
+				// Show confirmation dialog
+				const deleteOption = 'Delete All';
+				const confirm = await vscode.window.showWarningMessage(
+					previewMessage,
+					{ modal: true },
+					deleteOption,
+					'Cancel'
+				);
+
+				if (confirm !== deleteOption) {
+					return;
+				}
+
+				// Perform batch delete
+				const branchNames = preview.deletable.map(b => b.name);
+				const results = batchDeleteBranches(repoPath, branchNames, false);
+
+				// Show results using output channel for detailed error info
+				if (results.succeeded.length > 0 && results.failed.length === 0) {
+					// Clean success - simple message
+					vscode.window.showInformationMessage(
+						`Kiki: Deleted ${results.succeeded.length} merged branch${results.succeeded.length !== 1 ? 'es' : ''}`
+					);
+				} else if (results.failed.length > 0) {
+					// Some or all failed - use output channel for detailed info
+					const outputChannel = vscode.window.createOutputChannel('Kiki');
+					outputChannel.clear();
+					outputChannel.appendLine('Delete Merged Branches Results');
+					outputChannel.appendLine('='.repeat(50));
+					outputChannel.appendLine('');
+
+					if (results.succeeded.length > 0) {
+						outputChannel.appendLine(`Deleted ${results.succeeded.length} branch${results.succeeded.length !== 1 ? 'es' : ''}:`);
+						results.succeeded.forEach(name => {
+							outputChannel.appendLine(`  - ${name}`);
+						});
+						outputChannel.appendLine('');
+					}
+
+					if (results.failed.length > 0) {
+						outputChannel.appendLine(`Could not delete ${results.failed.length} branch${results.failed.length !== 1 ? 'es' : ''}:`);
+						outputChannel.appendLine('');
+
+						results.failed.forEach(f => {
+							// Parse the error to extract the useful part
+							let reason = f.error;
+
+							// Extract the main error message from git output
+							if (reason.includes('is not fully merged')) {
+								const branchMatch = reason.match(/not yet merged to '([^']+)'/);
+								const upstream = branchMatch ? branchMatch[1].replace('refs/remotes/', '') : 'its upstream';
+								reason = `Not fully merged to ${upstream}`;
+							} else if (reason.includes('Git command failed:')) {
+								// Extract just the git error, not the command
+								const lines = reason.split('\n');
+								const errorLine = lines.find(l => l.includes('error:')) || lines.find(l => l.includes('warning:'));
+								if (errorLine) {
+									reason = errorLine.replace(/^(error|warning):\s*/i, '').trim();
+								}
+							}
+
+							outputChannel.appendLine(`  Branch: ${f.name}`);
+							outputChannel.appendLine(`  Reason: ${reason}`);
+							outputChannel.appendLine(`  Fix:    git branch -D ${f.name}`);
+							outputChannel.appendLine('');
+						});
+					}
+
+					outputChannel.show(true);
+
+					// Show concise notification with action to view details
+					const message = results.succeeded.length > 0
+						? `Kiki: Deleted ${results.succeeded.length}, failed ${results.failed.length} - see output for details`
+						: `Kiki: Failed to delete ${results.failed.length} branch${results.failed.length !== 1 ? 'es' : ''} - see output for details`;
+
+					if (results.succeeded.length > 0) {
+						vscode.window.showWarningMessage(message);
+					} else {
+						vscode.window.showErrorMessage(message);
+					}
+				}
+
+				// Refresh the tree view
+				kikiProvider.refresh();
+			} catch (error: any) {
+				vscode.window.showErrorMessage(`Kiki: Failed to delete merged branches: ${error.message}`);
+			}
+		})
+	);
 }

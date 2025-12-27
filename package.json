@@ -92,6 +92,11 @@
 				"command": "kiki.openPR",
 				"title": "Open Pull Request",
 				"icon": "$(link-external)"
+			},
+			{
+				"command": "kiki.deleteMergedBranches",
+				"title": "Delete Merged Branches",
+				"icon": "$(clear-all)"
 			}
 		],
 		"menus": {
@@ -100,6 +105,11 @@
 					"command": "kiki.createBranch",
 					"when": "view == kikiView",
 					"group": "navigation@1"
+				},
+				{
+					"command": "kiki.deleteMergedBranches",
+					"when": "view == kikiView",
+					"group": "navigation@1.5"
 				},
 				{
 					"command": "kiki.refresh",

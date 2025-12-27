@@ -9,6 +9,7 @@ Kiki gives you a branch-centric view of your repo with dual-base awareness (deve
 - Per-branch deltas vs both `origin/develop` and `origin/main` (divergence, behind/ahead, needs rebase).
 - Merge-state detection with inclusion timestamps; merged branches are tucked into a collapsed group.
 - **Smart Rebase Conflict Preview** – See potential conflicts before rebasing, with force-push warnings.
+- **Batch Delete Merged Branches** – One-click cleanup of merged branches with safety checks and preview.
 - Inline actions: checkout, pull, push, rebase, merge `origin/develop` into a branch, delete, create, copy name, open PR (when available).
 - PR/MR awareness for GitHub/GitLab/BitBucket (optional tokens).
 - Detail rows with meaningful icons and a one-click "Rebase" when diverged.
@@ -32,6 +33,15 @@ Before executing a rebase, Kiki shows you:
 
 This helps you make informed decisions and avoid surprise conflicts. See [docs/smart-rebase-conflict-preview.md](docs/smart-rebase-conflict-preview.md) for details.
 
+### Batch Delete Merged Branches
+One-click cleanup of branches that have been merged into develop or main:
+- 🗑️ **Click button** in view title bar
+- 📋 **Preview** shows exactly what will be deleted (with merge dates)
+- 🛡️ **Automatic protection** for main/develop and active branches
+- ✅ **Clear results** showing successes and any failures
+
+See [docs/batch-delete-merged-branches.md](docs/batch-delete-merged-branches.md) for details.
+
 ## Commands (palette/context)
 - `kiki.refresh` – refresh view
 - `kiki.checkoutBranch`
@@ -39,6 +49,7 @@ This helps you make informed decisions and avoid surprise conflicts. See [docs/s
 - `kiki.rebaseBranch` – **now with smart conflict preview before execution**
 - `kiki.mergeDevelop` (merge `origin/develop` into the branch)
 - `kiki.deleteBranch` (warns on protected names)
+- `kiki.deleteMergedBranches` – **batch delete all merged branches with preview**
 - `kiki.createBranch`
 - `kiki.copyBranchName`
 - `kiki.openPR` (when PR data exists)
