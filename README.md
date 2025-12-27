@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="media/logo.png" alt="Kiki logo" width="120" />
+  <img src="media/logo.png" alt="Kiki logo" />
 </p>
 
 # Kiki – Git Branch Companion for VS Code
