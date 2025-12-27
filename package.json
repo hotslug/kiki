@@ -74,6 +74,11 @@
 				"icon": "$(repo-pull)"
 			},
 			{
+				"command": "kiki.deleteMergedBranch",
+				"title": "Delete Merged Branch",
+				"icon": "$(trash)"
+			},
+			{
 				"command": "kiki.createBranch",
 				"title": "Create New Branch",
 				"icon": "$(add)"
@@ -139,6 +144,11 @@
 					"group": "2_sync@1.5"
 				},
 				{
+					"command": "kiki.rebaseBranch",
+					"when": "view == kikiView && viewItem =~ /behindDevelop/ && !(viewItem =~ /active/)",
+					"group": "2_sync@1.75"
+				},
+				{
 					"command": "kiki.pushBranch",
 					"when": "view == kikiView && viewItem =~ /ahead/",
 					"group": "2_sync@2"
@@ -147,6 +157,11 @@
 					"command": "kiki.rebaseBranch",
 					"when": "view == kikiView && viewItem =~ /branchItem/ && !(viewItem =~ /active/) && viewItem =~ /behind/",
 					"group": "3_operations@1"
+				},
+				{
+					"command": "kiki.deleteMergedBranch",
+					"when": "view == kikiView && viewItem =~ /merged/ && !(viewItem =~ /active/)",
+					"group": "4_danger@0.5"
 				},
 				{
 					"command": "kiki.deleteBranch",

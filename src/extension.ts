@@ -141,6 +141,42 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	context.subscriptions.push(
+		vscode.commands.registerCommand('kiki.deleteMergedBranch', async (item: BranchItem) => {
+			const protectedBranches = ['main', 'master', 'develop', 'development'];
+			const branchName = item.status.name;
+			const isProtected = protectedBranches.includes(branchName);
+
+			if (isProtected) {
+				vscode.window.showWarningMessage(`Kiki: Protected branch "${branchName}" will not be deleted.`);
+				return;
+			}
+
+			const mergedInfo = [
+				item.status.mergedIntoDevelop ? 'merged into develop' : null,
+				item.status.mergedIntoMain ? 'merged into main' : null
+			].filter(Boolean).join(' and ');
+
+			const confirm = await vscode.window.showWarningMessage(
+				`Delete branch "${branchName}"? ${mergedInfo ? `(${mergedInfo})` : ''}`,
+				{ modal: true },
+				'Delete'
+			);
+			if (confirm !== 'Delete') return;
+
+			const repoPath = detectRepoRoot(vscode.workspace.workspaceFolders![0].uri.fsPath);
+			if (!repoPath) return;
+
+			try {
+				deleteBranch(repoPath, branchName, false);
+				vscode.window.showInformationMessage(`Deleted merged branch: ${branchName}`);
+				kikiProvider.refresh();
+			} catch (error: any) {
+				vscode.window.showErrorMessage(`Delete failed: ${error.message}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
 		vscode.commands.registerCommand('kiki.mergeDevelop', async (item: BranchItem) => {
 			if (!item) {
 				vscode.window.showWarningMessage('Kiki: No branch selected.');
