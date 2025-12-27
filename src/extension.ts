@@ -95,13 +95,56 @@ export function activate(context: vscode.ExtensionContext) {
 
 			try {
 				const baseBranch = getBaseBranch(repoPath);
+				const branchName = item.status.name;
+
+				// Preview potential conflicts before rebasing
+				const { previewRebaseConflicts, wouldRequireForcePush } = await import('./git/conflictPreview');
+				const preview = previewRebaseConflicts(repoPath, branchName, baseBranch);
+				const needsForcePush = wouldRequireForcePush(repoPath, branchName);
+
+				// Build confirmation message
+				let message = `Rebase ${branchName} onto ${baseBranch}?\n\n${preview.summary}`;
+
+				if (preview.hasConflicts && preview.conflictedFiles.length > 0) {
+					message += '\n\nConflicted files:';
+					const fileList = preview.conflictedFiles.slice(0, 5).map(f => `  • ${f}`).join('\n');
+					message += '\n' + fileList;
+					if (preview.conflictedFiles.length > 5) {
+						message += `\n  ... and ${preview.conflictedFiles.length - 5} more`;
+					}
+				}
+
+				if (needsForcePush) {
+					message += '\n\n⚠️ This will require a force push to update the remote branch.';
+				}
+
+				// Show confirmation dialog with preview
+				const confirmOption = preview.hasConflicts ? 'Rebase anyway' : 'Rebase';
+				const confirm = await vscode.window.showWarningMessage(
+					message,
+					{ modal: true },
+					confirmOption,
+					'Cancel'
+				);
+
+				if (confirm !== confirmOption) {
+					return;
+				}
+
+				// Proceed with rebase
 				await vscode.window.withProgress(
-					{ location: vscode.ProgressLocation.Notification, title: `Rebasing ${item.status.name}...` },
+					{ location: vscode.ProgressLocation.Notification, title: `Rebasing ${branchName}...` },
 					async () => {
-						rebaseBranch(repoPath, item.status.name, baseBranch);
+						rebaseBranch(repoPath, branchName, baseBranch);
 					}
 				);
-				vscode.window.showInformationMessage(`Rebased ${item.status.name} onto ${baseBranch}`);
+
+				let successMessage = `Rebased ${branchName} onto ${baseBranch}`;
+				if (needsForcePush) {
+					successMessage += ' (force push required)';
+				}
+
+				vscode.window.showInformationMessage(successMessage);
 				kikiProvider.refresh();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Rebase failed: ${error.message}`);

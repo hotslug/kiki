@@ -8,9 +8,10 @@ Kiki gives you a branch-centric view of your repo with dual-base awareness (deve
 - Grouped tree view (Main, Feature, Bug Fixes, Other, Merged) under the Kiki activity bar container.
 - Per-branch deltas vs both `origin/develop` and `origin/main` (divergence, behind/ahead, needs rebase).
 - Merge-state detection with inclusion timestamps; merged branches are tucked into a collapsed group.
+- **Smart Rebase Conflict Preview** – See potential conflicts before rebasing, with force-push warnings.
 - Inline actions: checkout, pull, push, rebase, merge `origin/develop` into a branch, delete, create, copy name, open PR (when available).
 - PR/MR awareness for GitHub/GitLab/BitBucket (optional tokens).
-- Detail rows with meaningful icons and a one-click “Rebase” when diverged.
+- Detail rows with meaningful icons and a one-click "Rebase" when diverged.
 
 ## Setup & Run
 1) `npm install`
@@ -21,13 +22,21 @@ Kiki gives you a branch-centric view of your repo with dual-base awareness (deve
 ## Using the View
 - Branch items show develop/main drift; expand a branch to see base/develop/main deltas, merge status/dates, rebase prompt, and PR info.
 - Right-click a branch for actions (checkout, pull/push, rebase, merge develop, delete, copy name, open PR).
-- Merged branches are auto-collapsed in “Merged Branches” to reduce noise.
+- Merged branches are auto-collapsed in "Merged Branches" to reduce noise.
+
+### Smart Rebase Conflict Preview
+Before executing a rebase, Kiki shows you:
+- ✅ **Clean rebase** – "0 conflicts expected" (safe to proceed)
+- ⚠️ **Conflicts detected** – List of files that will conflict
+- 🔄 **Force push warning** – Alert when rebase will require force pushing
+
+This helps you make informed decisions and avoid surprise conflicts. See [docs/smart-rebase-conflict-preview.md](docs/smart-rebase-conflict-preview.md) for details.
 
 ## Commands (palette/context)
 - `kiki.refresh` – refresh view
 - `kiki.checkoutBranch`
 - `kiki.pullBranch`, `kiki.pushBranch`
-- `kiki.rebaseBranch` (also offered inline when diverged)
+- `kiki.rebaseBranch` – **now with smart conflict preview before execution**
 - `kiki.mergeDevelop` (merge `origin/develop` into the branch)
 - `kiki.deleteBranch` (warns on protected names)
 - `kiki.createBranch`
