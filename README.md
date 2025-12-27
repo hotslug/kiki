@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="media/logo.png" alt="Kiki logo" width="120" />
+</p>
+
 # Kiki – Git Branch Companion for VS Code
 
 Kiki gives you a branch-centric view of your repo with dual-base awareness (develop and main), merge-state insights, and quick actions to keep branches clean.
