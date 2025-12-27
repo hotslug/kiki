@@ -1,17 +1,23 @@
 import * as vscode from 'vscode';
 import { BranchStatus } from '../git/branchStatus';
+import { BranchHealth, calculateBranchHealth } from '../git/branchHealth';
 
 export class BranchItem extends vscode.TreeItem {
+	public readonly health: BranchHealth;
+
 	constructor(
 		public readonly status: BranchStatus,
 		private readonly extensionUri: vscode.Uri
 	) {
 		super(status.name, vscode.TreeItemCollapsibleState.Collapsed);
 
+		// Calculate health score
+		this.health = calculateBranchHealth(status);
+
 		// Description logic from spec
 		this.description = this.formatDescription(status);
 		this.tooltip = this.formatTooltip(status);
-		this.iconPath = this.getIcon(status);
+		this.iconPath = this.getIcon();
 		this.contextValue = this.getContextValue(status);
 
 		// Add inline commands for quick actions
@@ -24,30 +30,12 @@ export class BranchItem extends vscode.TreeItem {
 		}
 	}
 
-	private getIcon(status: BranchStatus): vscode.ThemeIcon {
-		const { ahead, behind, name } = status;
-
-		// Priority: branch type icons first
-		if (name.startsWith('feature/')) {
-			return new vscode.ThemeIcon('rocket');
-		} else if (name.startsWith('bugfix/') || name.startsWith('hotfix/')) {
-			return new vscode.ThemeIcon('tools');
-		} else if (name.startsWith('release/')) {
-			return new vscode.ThemeIcon('package');
-		} else if (name === 'main' || name === 'master' || name === 'develop') {
-			return new vscode.ThemeIcon('git-branch');
-		}
-
-		// Fall back to git status icons
-		if (ahead === 0 && behind === 0) {
-			return new vscode.ThemeIcon('check', new vscode.ThemeColor('testing.iconPassed'));
-		} else if (ahead > 0 && behind === 0) {
-			return new vscode.ThemeIcon('arrow-up', new vscode.ThemeColor('gitDecoration.modifiedResourceForeground'));
-		} else if (ahead === 0 && behind > 0) {
-			return new vscode.ThemeIcon('arrow-down', new vscode.ThemeColor('gitDecoration.addedResourceForeground'));
-		} else {
-			return new vscode.ThemeIcon('warning', new vscode.ThemeColor('list.warningForeground'));
-		}
+	private getIcon(): vscode.ThemeIcon {
+		// Use health-based icons for better at-a-glance status
+		return new vscode.ThemeIcon(
+			this.health.icon,
+			new vscode.ThemeColor(this.health.iconColor)
+		);
 	}
 
 	private getContextValue(status: BranchStatus): string {

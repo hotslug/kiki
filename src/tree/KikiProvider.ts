@@ -18,13 +18,13 @@ export class KikiProvider implements vscode.TreeDataProvider<BranchItem | Branch
 	private periodicRefreshTimer: NodeJS.Timeout | undefined;
 	private autoRefreshEnabled: boolean = true;
 	private refreshInterval: number = 5; // minutes
-	private statusBarManager: StatusBarManager;
+	private statusBarManager: StatusBarManager | undefined;
 	private githubService: GitHubService;
 	private gitlabService: GitLabService;
 	private bitbucketService: BitBucketService;
 
 	constructor(private readonly extensionUri: vscode.Uri) {
-		this.statusBarManager = new StatusBarManager();
+		// StatusBarManager is now passed via setStatusBarManager() from extension.ts
 		this.githubService = new GitHubService();
 		this.gitlabService = new GitLabService();
 		this.bitbucketService = new BitBucketService();
@@ -96,9 +96,13 @@ export class KikiProvider implements vscode.TreeDataProvider<BranchItem | Branch
 		this.startAutoRefresh();
 	}
 
+	setStatusBarManager(manager: StatusBarManager): void {
+		this.statusBarManager = manager;
+	}
+
 	refresh(): void {
 		this._onDidChangeTreeData.fire();
-		this.statusBarManager.update();
+		this.statusBarManager?.update();
 	}
 
 	dispose(): void {
@@ -110,7 +114,7 @@ export class KikiProvider implements vscode.TreeDataProvider<BranchItem | Branch
 			clearInterval(this.periodicRefreshTimer);
 			this.periodicRefreshTimer = undefined;
 		}
-		this.statusBarManager.dispose();
+		// StatusBarManager is disposed by extension.ts, not here
 	}
 
 	getTreeItem(element: BranchItem | BranchGroup | BranchDetailItem): vscode.TreeItem {
@@ -147,22 +151,32 @@ export class KikiProvider implements vscode.TreeDataProvider<BranchItem | Branch
 				!mainBranches.includes(b) && !featureBranches.includes(b) && !bugfixBranches.includes(b) && !mergedBranches.includes(b)
 			);
 
-		// Sort within groups by risk: most behind develop first, then ahead, then name
-		const sortByRisk = (items: BranchItem[]) => items.sort((a, b) => {
+		// Sort within groups by health score: critical first, then attention, then healthy
+		// Within same health level, lower scores first (need more attention)
+		const sortByHealth = (items: BranchItem[]) => items.sort((a, b) => {
+			// Use health-based comparison
+			const healthOrder = { 'critical': 0, 'attention': 1, 'healthy': 2 };
+			const levelDiff = healthOrder[a.health.level] - healthOrder[b.health.level];
+			if (levelDiff !== 0) return levelDiff;
+
+			// Within same level, lower score first (needs more attention)
+			const scoreDiff = a.health.score - b.health.score;
+			if (scoreDiff !== 0) return scoreDiff;
+
+			// Tie-breaker: commits behind develop
 			const behindA = a.status.behindDevelop ?? a.status.behind ?? 0;
 			const behindB = b.status.behindDevelop ?? b.status.behind ?? 0;
 			if (behindA !== behindB) return behindB - behindA;
-			const aheadA = a.status.aheadDevelop ?? a.status.ahead ?? 0;
-			const aheadB = b.status.aheadDevelop ?? b.status.ahead ?? 0;
-			if (aheadA !== aheadB) return aheadB - aheadA;
+
+			// Final tie-breaker: name
 			return a.status.name.localeCompare(b.status.name);
 		});
 
-		sortByRisk(mainBranches);
-		sortByRisk(featureBranches);
-		sortByRisk(bugfixBranches);
-		sortByRisk(otherBranches);
-		sortByRisk(mergedBranches);
+		sortByHealth(mainBranches);
+		sortByHealth(featureBranches);
+		sortByHealth(bugfixBranches);
+		sortByHealth(otherBranches);
+		sortByHealth(mergedBranches);
 
 		const groups: BranchGroup[] = [];
 		
@@ -261,6 +275,23 @@ export class KikiProvider implements vscode.TreeDataProvider<BranchItem | Branch
 			}
 			return new vscode.ThemeIcon('warning', new vscode.ThemeColor('list.warningForeground'));
 		};
+
+		// Health Score at the top
+		const healthLabel = `Health: ${item.health.level === 'healthy' ? 'Healthy' : item.health.level === 'attention' ? 'Needs Attention' : 'Critical'} (${item.health.score}/100)`;
+		details.push(new BranchDetailItem(
+			healthLabel,
+			new vscode.ThemeIcon(item.health.icon, new vscode.ThemeColor(item.health.iconColor))
+		));
+
+		// Show issues if any
+		if (item.health.issues.length > 0) {
+			item.health.issues.forEach(issue => {
+				details.push(new BranchDetailItem(
+					issue,
+					new vscode.ThemeIcon('info', new vscode.ThemeColor('list.warningForeground'))
+				));
+			});
+		}
 
 		// Base (whatever the detected base is)
 		details.push(new BranchDetailItem(

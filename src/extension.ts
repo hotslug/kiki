@@ -6,6 +6,8 @@ import { checkoutBranch, deleteBranch, rebaseBranch, pushBranch, pullBranch, cre
 import { detectRepoRoot } from './git/detectRepo';
 import { getBaseBranch } from './git/baseBranch';
 import { execGit } from './git/execGit';
+import { getBranchStatuses } from './git/branchStatus';
+import { StatusBarManager } from './statusBar/StatusBarManager';
 
 // Helper function to normalize branch names
 function normalizeBranchName(name: string): string {
@@ -26,7 +28,19 @@ export function activate(context: vscode.ExtensionContext) {
 	// Kiki: Git branch status tree view
 	const kikiProvider = new KikiProvider(context.extensionUri);
 	vscode.window.registerTreeDataProvider('kikiView', kikiProvider);
-	vscode.commands.registerCommand('kiki.refresh', () => kikiProvider.refresh());
+
+	// Kiki: Status bar drift alert (single instance managed here)
+	const statusBarManager = new StatusBarManager();
+	context.subscriptions.push(statusBarManager);
+
+	// Connect status bar manager to provider
+	kikiProvider.setStatusBarManager(statusBarManager);
+
+	// Refresh both tree and status bar together
+	vscode.commands.registerCommand('kiki.refresh', () => {
+		kikiProvider.refresh();
+		statusBarManager.update();
+	});
 
 	// Register provider for disposal to clean up watchers
 	context.subscriptions.push(kikiProvider);
@@ -41,6 +55,8 @@ export function activate(context: vscode.ExtensionContext) {
 				checkoutBranch(repoPath, item.status.name);
 				vscode.window.showInformationMessage(`Checked out branch: ${item.status.name}`);
 				kikiProvider.refresh();
+				statusBarManager.update();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to checkout: ${error.message}`);
 			}
@@ -82,6 +98,7 @@ export function activate(context: vscode.ExtensionContext) {
 				deleteBranch(repoPath, branchName);
 				vscode.window.showInformationMessage(`Deleted branch: ${branchName}`);
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to delete: ${error.message}`);
 			}
@@ -146,6 +163,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				vscode.window.showInformationMessage(successMessage);
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Rebase failed: ${error.message}`);
 			}
@@ -162,6 +180,7 @@ export function activate(context: vscode.ExtensionContext) {
 				pushBranch(repoPath, item.status.name, setUpstream);
 				vscode.window.showInformationMessage(`Pushed branch: ${item.status.name}`);
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Push failed: ${error.message}`);
 			}
@@ -177,6 +196,7 @@ export function activate(context: vscode.ExtensionContext) {
 				pullBranch(repoPath, item.status.name);
 				vscode.window.showInformationMessage(`Pulled branch: ${item.status.name}`);
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Pull failed: ${error.message}`);
 			}
@@ -213,8 +233,82 @@ export function activate(context: vscode.ExtensionContext) {
 				deleteBranch(repoPath, branchName, false);
 				vscode.window.showInformationMessage(`Deleted merged branch: ${branchName}`);
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Delete failed: ${error.message}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('kiki.statusBarActions', async () => {
+			const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+			if (!workspaceFolder) {
+				vscode.window.showErrorMessage('Kiki: No workspace folder found.');
+				return;
+			}
+
+			const repoPath = detectRepoRoot(workspaceFolder.uri.fsPath);
+			if (!repoPath) {
+				vscode.window.showErrorMessage('Kiki: Not a Git repository.');
+				return;
+			}
+
+			let currentBranch = '';
+			try {
+				currentBranch = execGit('branch --show-current', repoPath).trim();
+			} catch {
+				currentBranch = '';
+			}
+			if (!currentBranch) {
+				vscode.window.showWarningMessage('Kiki: No current branch detected.');
+				return;
+			}
+
+			let status = undefined;
+			try {
+				status = getBranchStatuses(repoPath).find(s => s.name === currentBranch);
+			} catch (err: any) {
+				vscode.window.showErrorMessage(`Kiki: Unable to read branch status: ${err?.message || err}`);
+				return;
+			}
+
+			const actions: vscode.QuickPickItem[] = [];
+			if (status && (status.behindDevelop ?? status.behind ?? 0) > 0) {
+				actions.push({ label: '$(repo-pull) Merge origin/develop into current branch', description: 'Bring develop into branch' });
+				actions.push({ label: '$(git-merge) Rebase current branch onto develop/base', description: 'Rebase onto base' });
+			}
+			actions.push({ label: '$(refresh) Refresh Kiki', description: 'Refresh view and status bar' });
+
+			if (actions.length === 0) {
+				vscode.window.showInformationMessage('Kiki: No actions available for current branch.');
+				return;
+			}
+
+			const choice = await vscode.window.showQuickPick(actions, {
+				placeHolder: `Actions for ${currentBranch}`
+			});
+			if (!choice) return;
+
+			if (choice.label.includes('Merge origin/develop')) {
+				await vscode.commands.executeCommand('kiki.mergeDevelop', new BranchItem(
+					status!,
+					vscode.Uri.file(repoPath)
+				));
+			} else if (choice.label.includes('Rebase current branch')) {
+				const baseBranch = getBaseBranch(repoPath);
+				try {
+					rebaseBranch(repoPath, currentBranch, baseBranch);
+					vscode.window.showInformationMessage(`Rebased ${currentBranch} onto ${baseBranch}`);
+					kikiProvider.refresh();
+					statusBarManager.update();
+				statusBarManager.update();
+				} catch (err: any) {
+					vscode.window.showErrorMessage(`Kiki: Rebase failed: ${err?.message || err}`);
+				}
+			} else if (choice.label.includes('Refresh Kiki')) {
+				kikiProvider.refresh();
+				statusBarManager.update();
 			}
 		})
 	);
@@ -282,6 +376,7 @@ export function activate(context: vscode.ExtensionContext) {
 				execGit('merge origin/develop', repoPath);
 				vscode.window.showInformationMessage(`Kiki: Merged origin/develop into ${branchName}.`);
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (err: any) {
 				vscode.window.showErrorMessage(`Kiki: Merge failed: ${err?.message || err}`);
 			}
@@ -452,6 +547,7 @@ export function activate(context: vscode.ExtensionContext) {
 				createBranch(repoPath, fullBranchName, baseBranch);
 				vscode.window.showInformationMessage(`Created and checked out branch: ${fullBranchName}`);
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to create branch: ${error.message}`);
 			}
@@ -620,6 +716,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 				// Refresh the tree view
 				kikiProvider.refresh();
+				statusBarManager.update();
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Kiki: Failed to delete merged branches: ${error.message}`);
 			}

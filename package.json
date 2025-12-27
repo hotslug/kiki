@@ -22,7 +22,7 @@
 			"activitybar": [
 				{
 					"id": "package-explorer",
-					"title": "Package Explorer",
+					"title": "Kiki",
 					"icon": "media/logo.png"
 				}
 			]
@@ -97,6 +97,11 @@
 				"command": "kiki.deleteMergedBranches",
 				"title": "Delete Merged Branches",
 				"icon": "$(clear-all)"
+			},
+			{
+				"command": "kiki.statusBarActions",
+				"title": "Kiki: Branch Actions",
+				"icon": "$(git-branch)"
 			}
 		],
 		"menus": {
