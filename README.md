@@ -1,51 +1,44 @@
-# Views & View Containers
+# Kiki – Git Branch Companion for VS Code
 
-This sample demonstrates how to implement and contribute a tree view in VS Code. This includes:
+Kiki gives you a branch-centric view of your repo with dual-base awareness (develop and main), merge-state insights, and quick actions to keep branches clean.
 
-- Contributing views and view containers.
-- Contributing actions in various location of the view.
-- Implementing the tree data provider for the view.
-- Creating and working with the view.
+## Key Features
+- Grouped tree view (Main, Feature, Bug Fixes, Other, Merged) under the Kiki activity bar container.
+- Per-branch deltas vs both `origin/develop` and `origin/main` (divergence, behind/ahead, needs rebase).
+- Merge-state detection with inclusion timestamps; merged branches are tucked into a collapsed group.
+- Inline actions: checkout, pull, push, rebase, merge `origin/develop` into a branch, delete, create, copy name, open PR (when available).
+- PR/MR awareness for GitHub/GitLab/BitBucket (optional tokens).
+- Detail rows with meaningful icons and a one-click “Rebase” when diverged.
 
-This sample provides following views
+## Setup & Run
+1) `npm install`
+2) `npm run watch` (or `npm run compile` once)
+3) Press `F5` to launch the Extension Host with Kiki.
+4) Open a Git repo; Kiki appears in the activity bar as its own container. The view activates on demand (`onView:kikiView` if configured).
 
-- Node dependencies view
-- Ftp file explorer view
+## Using the View
+- Branch items show develop/main drift; expand a branch to see base/develop/main deltas, merge status/dates, rebase prompt, and PR info.
+- Right-click a branch for actions (checkout, pull/push, rebase, merge develop, delete, copy name, open PR).
+- Merged branches are auto-collapsed in “Merged Branches” to reduce noise.
 
-Following example shows Node dependencies view in Package Explorer View container.
+## Commands (palette/context)
+- `kiki.refresh` – refresh view
+- `kiki.checkoutBranch`
+- `kiki.pullBranch`, `kiki.pushBranch`
+- `kiki.rebaseBranch` (also offered inline when diverged)
+- `kiki.mergeDevelop` (merge `origin/develop` into the branch)
+- `kiki.deleteBranch` (warns on protected names)
+- `kiki.createBranch`
+- `kiki.copyBranchName`
+- `kiki.openPR` (when PR data exists)
 
-![Package Explorer](./resources/package-explorer.png)
+## Configuration (optional)
+- `kiki.autoRefresh` (default true), `kiki.refreshInterval` (minutes)
+- `kiki.github.enabled`, `kiki.github.token`
+- `kiki.gitlab.enabled`, `kiki.gitlab.token`, `kiki.gitlab.url`
+- `kiki.bitbucket.enabled`, `kiki.bitbucket.username`, `kiki.bitbucket.appPassword`
 
-## VS Code API
-
-This sample uses following contribution points, activation events and APIs
-
-### Contribution Points
-
-- `views`
-- `viewsContainers`
-- `menu`
-  - `view/title`
-  - `view/item/context`
-
-### Activation Events
-
-- `onView:${viewId}`
-
-### APIs
-
-- `window.createTreeView`
-- `window.registerTreeDataProvider`
-- `TreeView`
-- `TreeDataProvider`
-
-Refer to [Usage](./USAGE.md) document for more details.
-
-## Running the Sample
-
-- Open this example in VS Code Insiders
-- `npm install`
-- `npm run watch`
-- `F5` to start debugging
-- Node dependencies view is shown in Package explorer view container in Activity bar.
-- FTP file explorer view should be shown in Explorer
+## Notes & Limitations
+- Assumes remote is `origin`; base detection prefers `origin/HEAD`, then main/develop/master.
+- Git operations run on the extension host; slow fetch/merge/rebase can block briefly.
+- `mergeDevelop` and `rebaseBranch` execute Git commands; ensure you’re comfortable with these before running on important branches.
