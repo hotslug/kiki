@@ -140,12 +140,29 @@ export class KikiProvider implements vscode.TreeDataProvider<BranchItem | Branch
 			b.status.name === 'develop' || b.status.isActive
 		);
 		const featureBranches = branches.filter(b => b.status.name.startsWith('feature/') && !mergedBranches.includes(b));
-		const bugfixBranches = branches.filter(b => 
-			(b.status.name.startsWith('bugfix/') || b.status.name.startsWith('hotfix/')) && !mergedBranches.includes(b)
-		);
-		const otherBranches = branches.filter(b => 
-			!mainBranches.includes(b) && !featureBranches.includes(b) && !bugfixBranches.includes(b) && !mergedBranches.includes(b)
-		);
+			const bugfixBranches = branches.filter(b => 
+				(b.status.name.startsWith('bugfix/') || b.status.name.startsWith('hotfix/')) && !mergedBranches.includes(b)
+			);
+			const otherBranches = branches.filter(b => 
+				!mainBranches.includes(b) && !featureBranches.includes(b) && !bugfixBranches.includes(b) && !mergedBranches.includes(b)
+			);
+
+		// Sort within groups by risk: most behind develop first, then ahead, then name
+		const sortByRisk = (items: BranchItem[]) => items.sort((a, b) => {
+			const behindA = a.status.behindDevelop ?? a.status.behind ?? 0;
+			const behindB = b.status.behindDevelop ?? b.status.behind ?? 0;
+			if (behindA !== behindB) return behindB - behindA;
+			const aheadA = a.status.aheadDevelop ?? a.status.ahead ?? 0;
+			const aheadB = b.status.aheadDevelop ?? b.status.ahead ?? 0;
+			if (aheadA !== aheadB) return aheadB - aheadA;
+			return a.status.name.localeCompare(b.status.name);
+		});
+
+		sortByRisk(mainBranches);
+		sortByRisk(featureBranches);
+		sortByRisk(bugfixBranches);
+		sortByRisk(otherBranches);
+		sortByRisk(mergedBranches);
 
 		const groups: BranchGroup[] = [];
 		
