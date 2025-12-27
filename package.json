@@ -1,0 +1,255 @@
+{
+	"name": "kiki",
+	"displayName": "Kiki",
+	"description": "Git branch status companion",
+	"version": "0.0.1",
+	"publisher": "vscode-samples",
+	"private": true,
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Microsoft/vscode-extension-samples"
+	},
+	"engines": {
+		"vscode": "^1.100.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"main": "./out/extension.js",
+	"contributes": {
+		"viewsContainers": {
+			"activitybar": [
+				{
+					"id": "package-explorer",
+					"title": "Package Explorer",
+					"icon": "media/logo.png"
+				}
+			]
+		},
+		"views": {
+			"package-explorer": [
+				{
+					"id": "kikiView",
+					"name": "Kiki",
+					"icon": "media/logo.png",
+					"contextualTitle": "Kiki - Git Branch Manager"
+				}
+			]
+		},
+		"commands": [
+			{
+				"command": "kiki.refresh",
+				"title": "Kiki: Refresh",
+				"icon": "$(refresh)"
+			},
+			{
+				"command": "kiki.checkoutBranch",
+				"title": "Checkout Branch",
+				"icon": "$(git-branch)"
+			},
+			{
+				"command": "kiki.deleteBranch",
+				"title": "Delete Branch",
+				"icon": "$(trash)"
+			},
+			{
+				"command": "kiki.rebaseBranch",
+				"title": "Rebase onto Base Branch",
+				"icon": "$(git-merge)"
+			},
+			{
+				"command": "kiki.pushBranch",
+				"title": "Push Branch",
+				"icon": "$(arrow-up)"
+			},
+			{
+				"command": "kiki.pullBranch",
+				"title": "Pull Branch",
+				"icon": "$(arrow-down)"
+			},
+			{
+				"command": "kiki.mergeDevelop",
+				"title": "Merge origin/develop into Branch",
+				"icon": "$(repo-pull)"
+			},
+			{
+				"command": "kiki.createBranch",
+				"title": "Create New Branch",
+				"icon": "$(add)"
+			},
+			{
+				"command": "kiki.copyBranchName",
+				"title": "Copy Branch Name",
+				"icon": "$(copy)"
+			},
+			{
+				"command": "kiki.openPR",
+				"title": "Open Pull Request",
+				"icon": "$(link-external)"
+			}
+		],
+		"menus": {
+			"view/title": [
+				{
+					"command": "kiki.createBranch",
+					"when": "view == kikiView",
+					"group": "navigation@1"
+				},
+				{
+					"command": "kiki.refresh",
+					"when": "view == kikiView",
+					"group": "navigation@2"
+				}
+			],
+			"view/item/context": [
+				{
+					"command": "kiki.checkoutBranch",
+					"when": "view == kikiView && viewItem =~ /branchItem/ && !(viewItem =~ /active/)",
+					"group": "inline@1"
+				},
+				{
+					"command": "kiki.pushBranch",
+					"when": "view == kikiView && viewItem =~ /ahead/",
+					"group": "inline@2"
+				},
+				{
+					"command": "kiki.pullBranch",
+					"when": "view == kikiView && viewItem =~ /behind/",
+					"group": "inline@3"
+				},
+				{
+					"command": "kiki.checkoutBranch",
+					"when": "view == kikiView && viewItem =~ /branchItem/ && !(viewItem =~ /active/)",
+					"group": "1_navigation@1"
+				},
+				{
+					"command": "kiki.createBranch",
+					"when": "view == kikiView && viewItem =~ /branchItem/",
+					"group": "1_navigation@2"
+				},
+				{
+					"command": "kiki.pullBranch",
+					"when": "view == kikiView && viewItem =~ /behind/",
+					"group": "2_sync@1"
+				},
+				{
+					"command": "kiki.mergeDevelop",
+					"when": "view == kikiView && viewItem =~ /behindDevelop/",
+					"group": "2_sync@1.5"
+				},
+				{
+					"command": "kiki.pushBranch",
+					"when": "view == kikiView && viewItem =~ /ahead/",
+					"group": "2_sync@2"
+				},
+				{
+					"command": "kiki.rebaseBranch",
+					"when": "view == kikiView && viewItem =~ /branchItem/ && !(viewItem =~ /active/) && viewItem =~ /behind/",
+					"group": "3_operations@1"
+				},
+				{
+					"command": "kiki.deleteBranch",
+					"when": "view == kikiView && viewItem =~ /branchItem/ && !(viewItem =~ /active/)",
+					"group": "4_danger@1"
+				},
+				{
+					"command": "kiki.copyBranchName",
+					"when": "view == kikiView && viewItem =~ /branchItem/",
+					"group": "5_utility@1"
+				},
+				{
+					"command": "kiki.openPR",
+					"when": "view == kikiView && viewItem =~ /hasPR/",
+					"group": "5_utility@2"
+				}
+			]
+		},
+		"configuration": [
+			{
+				"title": "Kiki",
+				"properties": {
+					"kiki.autoRefresh": {
+						"type": "boolean",
+						"default": true,
+						"description": "Automatically refresh branch status when switching branches or on a timer"
+					},
+					"kiki.refreshInterval": {
+						"type": "number",
+						"default": 5,
+						"minimum": 0,
+						"description": "Minutes between automatic refreshes (0 = disabled)"
+					},
+					"kiki.github.enabled": {
+						"type": "boolean",
+						"default": false,
+						"description": "Enable GitHub PR integration"
+					},
+					"kiki.github.token": {
+						"type": "string",
+						"default": "",
+						"description": "GitHub personal access token for PR integration"
+					},
+					"kiki.gitlab.enabled": {
+						"type": "boolean",
+						"default": false,
+						"description": "Enable GitLab MR integration"
+					},
+					"kiki.gitlab.token": {
+						"type": "string",
+						"default": "",
+						"description": "GitLab personal access token for MR integration"
+					},
+					"kiki.gitlab.url": {
+						"type": "string",
+						"default": "https://gitlab.com",
+						"description": "GitLab instance URL"
+					},
+					"kiki.bitbucket.enabled": {
+						"type": "boolean",
+						"default": false,
+						"description": "Enable BitBucket PR integration"
+					},
+					"kiki.bitbucket.username": {
+						"type": "string",
+						"default": "",
+						"description": "BitBucket username for authentication"
+					},
+					"kiki.bitbucket.appPassword": {
+						"type": "string",
+						"default": "",
+						"description": "BitBucket app password for authentication"
+					}
+				}
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"lint": "eslint"
+	},
+	"devDependencies": {
+		"@eslint/js": "^9.13.0",
+		"@stylistic/eslint-plugin": "^2.9.0",
+		"@types/ftp": "^0.3.33",
+		"@types/mkdirp": "^0.5.2",
+		"@types/node": "^22",
+		"@types/rimraf": "^2.0.2",
+		"@types/vscode": "^1.100.0",
+		"eslint": "^9.13.0",
+		"typescript": "^5.9.2",
+		"typescript-eslint": "^8.39.0"
+	},
+	"dependencies": {
+		"@gitbeaker/rest": "^43.8.0",
+		"@octokit/rest": "^22.0.1",
+		"bitbucket": "^2.12.0",
+		"ftp": "^0.3.10",
+		"jsonc-parser": "^0.4.2",
+		"minimist": "^1.2.6",
+		"mkdirp": "^0.5.1",
+		"rimraf": "^2.6.2"
+	}
+}
