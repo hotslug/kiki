@@ -1,5 +1,4 @@
-
-  <img src="media/logo.png" alt="Kiki logo" />
+<img src="media/logo.png" alt="Kiki logo" />
 
 # Kiki – Git Branch Companion for VS Code
 
